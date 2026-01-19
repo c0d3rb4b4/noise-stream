@@ -64,8 +64,7 @@ class NoiseFFmpegRunner:
             "-f", "hls",
             "-hls_time", str(self.config.segment_time),
             "-hls_list_size", str(self.config.list_size),
-            # Keep a larger rolling window and avoid premature 404s
-            "-hls_flags", "delete_segments+append_list+program_date_time+independent_segments",
+            "-hls_flags", "delete_segments",
             "-hls_segment_filename", str(segment_path),
             str(output_path),
         ]
