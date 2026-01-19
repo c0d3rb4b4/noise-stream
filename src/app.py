@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from config import get_config
 from noise_manager import NoiseStreamManager
@@ -195,11 +195,14 @@ async def get_hls_file(stream_id: str, filename: str):
         raise HTTPException(status_code=404, detail="File not found")
     if filename.endswith(".m3u8"):
         media_type = "application/vnd.apple.mpegurl"
+        # Read playlist into memory to avoid race condition with FFmpeg updates
+        content = file_path.read_bytes()
+        return Response(content=content, media_type=media_type)
     elif filename.endswith(".ts"):
         media_type = "video/mp2t"
+        return FileResponse(file_path, media_type=media_type)
     else:
         raise HTTPException(status_code=400, detail="Invalid file type")
-    return FileResponse(file_path, media_type=media_type)
 
 
 @app.get("/hls/{filename}")
@@ -213,11 +216,14 @@ async def get_legacy_hls_file(filename: str):
             if file_path.exists():
                 if filename.endswith(".m3u8"):
                     media_type = "application/vnd.apple.mpegurl"
+                    # Read playlist into memory to avoid race condition with FFmpeg updates
+                    content = file_path.read_bytes()
+                    return Response(content=content, media_type=media_type)
                 elif filename.endswith(".ts"):
                     media_type = "video/mp2t"
+                    return FileResponse(file_path, media_type=media_type)
                 else:
                     raise HTTPException(status_code=400, detail="Invalid file type")
-                return FileResponse(file_path, media_type=media_type)
     raise HTTPException(status_code=404, detail="File not found")
 
 
