@@ -57,6 +57,7 @@ class NoiseFFmpegRunner:
 
         command = [
             "ffmpeg",
+            "-re",  # Read input at native frame rate (real-time) - critical for generated sources
             "-f", "lavfi",
             "-i", source,
             "-c:a", "aac",
