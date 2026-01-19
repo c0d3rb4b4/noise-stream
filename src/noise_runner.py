@@ -64,7 +64,6 @@ class NoiseFFmpegRunner:
             "-f", "hls",
             "-hls_time", str(self.config.segment_time),
             "-hls_list_size", str(self.config.list_size),
-            "-hls_delete_threshold", str(self.config.list_size),  # Keep extra buffer before deletion
             "-hls_flags", "delete_segments",
             "-hls_segment_filename", str(segment_path),
             str(output_path),

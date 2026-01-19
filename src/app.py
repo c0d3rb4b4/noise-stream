@@ -197,7 +197,12 @@ async def get_hls_file(stream_id: str, filename: str):
         media_type = "application/vnd.apple.mpegurl"
         # Read playlist into memory to avoid race condition with FFmpeg updates
         content = file_path.read_bytes()
-        return Response(content=content, media_type=media_type)
+        # Prevent caching so clients always get fresh playlist
+        return Response(
+            content=content,
+            media_type=media_type,
+            headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+        )
     elif filename.endswith(".ts"):
         media_type = "video/mp2t"
         return FileResponse(file_path, media_type=media_type)
@@ -216,9 +221,12 @@ async def get_legacy_hls_file(filename: str):
             if file_path.exists():
                 if filename.endswith(".m3u8"):
                     media_type = "application/vnd.apple.mpegurl"
-                    # Read playlist into memory to avoid race condition with FFmpeg updates
                     content = file_path.read_bytes()
-                    return Response(content=content, media_type=media_type)
+                    return Response(
+                        content=content,
+                        media_type=media_type,
+                        headers={"Cache-Control": "no-cache, no-store, must-revalidate"},
+                    )
                 elif filename.endswith(".ts"):
                     media_type = "video/mp2t"
                     return FileResponse(file_path, media_type=media_type)

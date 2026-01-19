@@ -37,7 +37,7 @@ ENV PYTHONPATH=/app/src \
     SAMPLE_RATE=44100 \
     AUDIO_BITRATE=128k \
     SEGMENT_TIME=2 \
-    LIST_SIZE=120 \
+    LIST_SIZE=5 \
     NOISE_TYPES=white,pink,brown
 
 # Expose port

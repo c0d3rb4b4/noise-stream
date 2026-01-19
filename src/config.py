@@ -46,7 +46,7 @@ class FFmpegConfig:
         default_factory=lambda: _get_int_env("SEGMENT_TIME", 2, min_val=1)
     )
     list_size: int = field(
-        default_factory=lambda: _get_int_env("LIST_SIZE", 120, min_val=2)
+        default_factory=lambda: _get_int_env("LIST_SIZE", 5, min_val=1)
     )
 
 
