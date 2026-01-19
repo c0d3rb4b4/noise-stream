@@ -1,0 +1,15 @@
+meta {
+  name: "GET status"
+}
+
+env {
+  name: "Local"
+  vars: {
+    baseUrl: "http://localhost:8081"
+  }
+}
+
+http {
+  method: GET
+  url: {{baseUrl}}/status
+}

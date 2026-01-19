@@ -1,0 +1,15 @@
+meta {
+  name: "GET hls file by noise"
+}
+
+env {
+  name: "Local"
+  vars: {
+    baseUrl: "http://localhost:8081"
+  }
+}
+
+http {
+  method: GET
+  url: {{baseUrl}}/hls/noise_white/stream.m3u8
+}
