@@ -2,6 +2,7 @@ services:
   app:
     build: .
     container_name: noise-stream
+    user: "1000:1000"
     ports:
       - "8081:8000"
     volumes:

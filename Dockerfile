@@ -7,8 +7,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd --create-home --shell /bin/bash noisestream
+# Create non-root user with stable uid/gid matching typical host (1000)
+RUN groupadd -g 1000 noisestream && \
+    useradd --create-home --uid 1000 --gid 1000 --shell /bin/bash noisestream
 
 # Set working directory
 WORKDIR /app
