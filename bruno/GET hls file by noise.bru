@@ -1,15 +1,15 @@
 meta {
-  name: "GET hls file by noise"
+  name: GET HLS playlist (white)
+  type: http
+  seq: 7
 }
 
-env {
-  name: "Local"
-  vars: {
-    baseUrl: "http://localhost:8081"
-  }
+get {
+  url: {{noise_stream_url}}/hls/noise_white/stream.m3u8
+  body: none
+  auth: inherit
 }
 
-http {
-  method: GET
-  url: {{baseUrl}}/hls/noise_white/stream.m3u8
+docs {
+  Fetch white noise HLS playlist.
 }

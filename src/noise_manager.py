@@ -116,44 +116,75 @@ class NoiseStreamManager:
         )
 
     def start_all_streams(self) -> dict:
+        if not self.noise_types:
+            logger.error("No noise types configured; cannot start streams")
+            return {
+                "success": False,
+                "message": "No noise types configured",
+                "started": 0,
+                "failed": 0,
+                "streams": [],
+            }
+
         logger.info("Starting all noise streams: %s", ", ".join(self.noise_types))
-        results = []
+        results: list[dict] = []
         started_count = 0
         failed_count = 0
-        with self._lock:
-            for noise in self.noise_types:
-                stream_id = f"noise_{noise}"
-                if stream_id in self._streams:
-                    existing = self._streams[stream_id]
-                    if existing.runner.is_running():
-                        results.append({"stream_id": stream_id, "status": "already_running", "noise": noise})
+
+        try:
+            with self._lock:
+                for noise in self.noise_types:
+                    stream_id = f"noise_{noise}"
+
+                    if stream_id in self._streams:
+                        existing = self._streams[stream_id]
+                        if existing.runner.is_running():
+                            results.append({
+                                "stream_id": stream_id,
+                                "status": "already_running",
+                                "noise": noise,
+                            })
+                            started_count += 1
+                            continue
+
+                    stream_info = self._create_stream_for_noise(noise)
+                    stream_info.state = StreamState.STARTING
+                    success = stream_info.runner.start()
+
+                    if success:
+                        stream_info.state = StreamState.RUNNING
+                        stream_info.started_at = datetime.now()
+                        stream_info.error_message = None
                         started_count += 1
-                        continue
-                stream_info = self._create_stream_for_noise(noise)
-                stream_info.state = StreamState.STARTING
-                success = stream_info.runner.start()
-                if success:
-                    stream_info.state = StreamState.RUNNING
-                    stream_info.started_at = datetime.now()
-                    stream_info.error_message = None
-                    started_count += 1
-                    results.append({
-                        "stream_id": stream_id,
-                        "status": "started",
-                        "noise": noise,
-                        "stream_url": f"/hls/{stream_id}/stream.m3u8",
-                    })
-                else:
-                    stream_info.state = StreamState.ERROR
-                    stream_info.error_message = "Failed to start FFmpeg process"
-                    failed_count += 1
-                    results.append({
-                        "stream_id": stream_id,
-                        "status": "failed",
-                        "noise": noise,
-                        "error": stream_info.error_message,
-                    })
-                self._streams[stream_id] = stream_info
+                        results.append({
+                            "stream_id": stream_id,
+                            "status": "started",
+                            "noise": noise,
+                            "stream_url": f"/hls/{stream_id}/stream.m3u8",
+                        })
+                    else:
+                        stream_info.state = StreamState.ERROR
+                        stream_info.error_message = "Failed to start FFmpeg process"
+                        failed_count += 1
+                        results.append({
+                            "stream_id": stream_id,
+                            "status": "failed",
+                            "noise": noise,
+                            "error": stream_info.error_message,
+                        })
+
+                    self._streams[stream_id] = stream_info
+        except Exception as exc:  # Defensive: return structured error instead of 500
+            logger.exception("Exception while starting noise streams: %s", exc)
+            return {
+                "success": False,
+                "message": "Exception while starting streams",
+                "error": str(exc),
+                "started": started_count,
+                "failed": failed_count,
+                "streams": results,
+            }
+
         return {
             "success": started_count > 0,
             "message": f"Started {started_count} streams, {failed_count} failed",
@@ -203,34 +234,37 @@ class NoiseStreamManager:
                 return {"success": False, "error": "Failed to stop stream"}
 
     def start_stream(self, stream_id: str) -> dict:
-        with self._lock:
-            stream_info = self._streams.get(stream_id)
-            if not stream_info:
-                # If not created yet, try to infer noise type from id and create
-                if not stream_id.startswith("noise_"):
-                    return {"success": False, "error": "Stream not found"}
-                noise_type = stream_id.removeprefix("noise_")
-                if noise_type not in self.noise_types:
-                    return {"success": False, "error": "Invalid noise type"}
-                stream_info = self._create_stream_for_noise(noise_type)
-                self._streams[stream_id] = stream_info
-            if stream_info.runner.is_running():
-                return {"success": True, "message": "Stream already running"}
-            stream_info.state = StreamState.STARTING
-            success = stream_info.runner.start()
-            if success:
-                stream_info.state = StreamState.RUNNING
-                stream_info.started_at = datetime.now()
-                stream_info.error_message = None
-                return {
-                    "success": True,
-                    "message": "Stream started",
-                    "stream_url": f"/hls/{stream_id}/stream.m3u8",
-                }
-            else:
-                stream_info.state = StreamState.ERROR
-                stream_info.error_message = "Failed to start FFmpeg process"
-                return {"success": False, "error": "Failed to start stream"}
+        try:
+            with self._lock:
+                stream_info = self._streams.get(stream_id)
+                if not stream_info:
+                    if not stream_id.startswith("noise_"):
+                        return {"success": False, "error": "Stream not found"}
+                    noise_type = stream_id.removeprefix("noise_")
+                    if noise_type not in self.noise_types:
+                        return {"success": False, "error": "Invalid noise type"}
+                    stream_info = self._create_stream_for_noise(noise_type)
+                    self._streams[stream_id] = stream_info
+                if stream_info.runner.is_running():
+                    return {"success": True, "message": "Stream already running"}
+                stream_info.state = StreamState.STARTING
+                success = stream_info.runner.start()
+                if success:
+                    stream_info.state = StreamState.RUNNING
+                    stream_info.started_at = datetime.now()
+                    stream_info.error_message = None
+                    return {
+                        "success": True,
+                        "message": "Stream started",
+                        "stream_url": f"/hls/{stream_id}/stream.m3u8",
+                    }
+                else:
+                    stream_info.state = StreamState.ERROR
+                    stream_info.error_message = "Failed to start FFmpeg process"
+                    return {"success": False, "error": "Failed to start stream"}
+        except Exception as exc:
+            logger.exception("Exception while starting stream %s: %s", stream_id, exc)
+            return {"success": False, "error": str(exc)}
 
     def get_status(self) -> dict:
         with self._lock:

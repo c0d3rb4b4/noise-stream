@@ -1,15 +1,15 @@
 meta {
-  name: "GET health"
+  name: GET health
+  type: http
+  seq: 1
 }
 
-env {
-  name: "Local"
-  vars: {
-    baseUrl: "http://localhost:8081"
-  }
+get {
+  url: {{noise_stream_url}}/health
+  body: none
+  auth: inherit
 }
 
-http {
-  method: GET
-  url: {{baseUrl}}/health
+docs {
+  Service health check.
 }

@@ -126,7 +126,11 @@ async def health():
 
 @app.post("/stream/start")
 async def start_streams():
-    return stream_manager.start_all_streams()
+    try:
+        return stream_manager.start_all_streams()
+    except Exception as exc:
+        logger.exception("Error starting all streams: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Error starting streams: {exc}")
 
 
 @app.post("/stream/stop")
@@ -153,12 +157,18 @@ async def get_stream_health(stream_id: str):
 
 @app.post("/stream/{stream_id}/start")
 async def start_stream(stream_id: str):
-    result = stream_manager.start_stream(stream_id)
-    if not result["success"]:
-        if result.get("error") == "Stream not found":
-            raise HTTPException(status_code=404, detail="Stream not found")
-        raise HTTPException(status_code=500, detail=result.get("error", "Failed to start stream"))
-    return result
+    try:
+        result = stream_manager.start_stream(stream_id)
+        if not result["success"]:
+            if result.get("error") == "Stream not found":
+                raise HTTPException(status_code=404, detail="Stream not found")
+            raise HTTPException(status_code=500, detail=result.get("error", "Failed to start stream"))
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        logger.exception("Error starting stream %s: %s", stream_id, exc)
+        raise HTTPException(status_code=500, detail=f"Error starting stream: {exc}")
 
 
 @app.post("/stream/{stream_id}/stop")

@@ -1,0 +1,15 @@
+meta {
+  name: POST stream stop (white)
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{noise_stream_url}}/stream/noise_white/stop
+  body: none
+  auth: inherit
+}
+
+docs {
+  Stop the white noise stream.
+}
