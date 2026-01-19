@@ -1,0 +1,117 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Sync files to service server
+        run: |
+          rsync -avz --delete \
+            --exclude '.git' \
+            --exclude '__pycache__' \
+            --exclude '*.pyc' \
+            --exclude '.pytest_cache' \
+            --exclude 'config/app.env' \
+            ./noise-stream/ ${{ secrets.DEPLOY_USER }}@192.168.68.84:~/noise-stream/
+
+      - name: Ensure config file exists
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@192.168.68.84 << 'EOF'
+          cd ~/noise-stream
+          mkdir -p config
+          
+          # Create app.env from example if it doesn't exist
+          if [ ! -f config/app.env ]; then
+            echo "Creating config/app.env from example..."
+            if [ -f config/app.env.example ]; then
+              cp config/app.env.example config/app.env
+              echo "WARNING: Using default config - please update config/app.env with real values"
+            else
+              echo "Creating minimal config/app.env..."
+              cat > config/app.env << 'ENVEOF'
+          HOST=0.0.0.0
+          PORT=8000
+          SAMPLE_RATE=44100
+          AUDIO_BITRATE=128k
+          SEGMENT_TIME=2
+          LIST_SIZE=5
+          NOISE_TYPES=white,pink,brown
+          LOG_LEVEL=INFO
+          DEBUG=false
+          ENVEOF
+            fi
+          else
+            echo "config/app.env already exists"
+          fi
+          
+          echo "Config file contents:"
+          cat config/app.env
+          EOF
+
+      - name: Deploy via SSH
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@192.168.68.84 << 'EOF'
+          cd ~/noise-stream
+          
+          echo "=== Docker Compose Config ==="
+          docker compose config --quiet && echo "Config valid" || echo "Config invalid"
+          
+          echo "=== Stopping existing container ==="
+          docker compose down || true
+          
+          echo "=== Building image ==="
+          docker compose build
+          
+          echo "=== Starting container ==="
+          docker compose up -d
+          
+          echo "=== Container status ==="
+          docker compose ps -a
+          EOF
+
+      - name: Wait for services to be healthy
+        run: |
+          ssh ${{ secrets.DEPLOY_USER }}@192.168.68.84 << 'EOF'
+          echo "Waiting for noise-stream service to be ready..."
+          
+          # First check if container is running
+          if ! docker ps --format '{{.Names}}' | grep -q '^noise-stream$'; then
+            echo "ERROR: Container noise-stream is not running!"
+            echo "=== Container logs ==="
+            docker compose -f ~/noise-stream/docker-compose.yml logs --tail 100
+            exit 1
+          fi
+          
+          for i in {1..30}; do
+            if docker exec noise-stream python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" > /dev/null 2>&1; then
+              echo "Service is ready!"
+              exit 0
+            fi
+            echo "Attempt $i/30: Service not ready yet, waiting..."
+            sleep 2
+          done
+          
+          echo "Service failed to become healthy"
+          echo "=== Container status ==="
+          docker ps -a --filter name=noise-stream
+          echo "=== Container logs ==="
+          docker compose -f ~/noise-stream/docker-compose.yml logs --tail 100
+          exit 1
+          EOF
+
+      - name: Health Check
+        run: |
+          echo "Performing external health check..."
+          curl -sf http://192.168.68.84:8081/health || exit 1
+          echo "Health check passed!"
