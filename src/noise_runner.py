@@ -50,7 +50,7 @@ class NoiseFFmpegRunner:
     def _build_command(self) -> list[str]:
         """Build FFmpeg command for HLS streaming from generated noise."""
         output_path = self.hls_dir / "stream.m3u8"
-        segment_path = self.hls_dir / "segment%03d.ts"
+        segment_path = self.hls_dir / "segment%05d.ts"
 
         # anoisesrc supports color=white|pink|brown
         source = f"anoisesrc=color={self.noise_type}:sample_rate={self.config.sample_rate}"
@@ -64,6 +64,7 @@ class NoiseFFmpegRunner:
             "-f", "hls",
             "-hls_time", str(self.config.segment_time),
             "-hls_list_size", str(self.config.list_size),
+            "-hls_delete_threshold", str(self.config.list_size),  # Keep extra buffer before deletion
             "-hls_flags", "delete_segments",
             "-hls_segment_filename", str(segment_path),
             str(output_path),
