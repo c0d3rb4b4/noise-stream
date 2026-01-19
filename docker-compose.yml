@@ -14,7 +14,7 @@ services:
       - SAMPLE_RATE=${SAMPLE_RATE:-44100}
       - AUDIO_BITRATE=${AUDIO_BITRATE:-128k}
       - SEGMENT_TIME=${SEGMENT_TIME:-2}
-      - LIST_SIZE=${LIST_SIZE:-5}
+      - LIST_SIZE=${LIST_SIZE:-120}
       - NOISE_TYPES=${NOISE_TYPES:-white,pink,brown}
     labels:
       - "logging=promtail"
