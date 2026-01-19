@@ -23,7 +23,7 @@ jobs:
             --exclude '*.pyc' \
             --exclude '.pytest_cache' \
             --exclude 'config/app.env' \
-            ./noise-stream/ ${{ secrets.DEPLOY_USER }}@192.168.68.84:~/noise-stream/
+            ./ ${{ secrets.DEPLOY_USER }}@192.168.68.84:~/noise-stream/
 
       - name: Ensure config file exists
         run: |
