@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 
 from config import get_config
@@ -86,6 +87,12 @@ app = FastAPI(
     description="HLS audio streaming of generated noise (white/pink/brown)",
     version="1.0.0",
     lifespan=lifespan,
+)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["GET", "HEAD", "OPTIONS"],
+    allow_headers=["*"],
 )
 
 
@@ -194,7 +201,7 @@ async def get_hls_file(stream_id: str, filename: str):
         logger.warning("HLS file not found: stream_id=%s, filename=%s", stream_id, filename)
         raise HTTPException(status_code=404, detail="File not found")
     if filename.endswith(".m3u8"):
-        media_type = "application/vnd.apple.mpegurl"
+        media_type = "application/x-mpegurl"
         # Read playlist into memory to avoid race condition with FFmpeg updates
         content = file_path.read_bytes()
         # Prevent caching so clients always get fresh playlist
@@ -220,7 +227,7 @@ async def get_legacy_hls_file(filename: str):
             file_path = Path(stream_info.hls_path) / filename
             if file_path.exists():
                 if filename.endswith(".m3u8"):
-                    media_type = "application/vnd.apple.mpegurl"
+                    media_type = "application/x-mpegurl"
                     content = file_path.read_bytes()
                     return Response(
                         content=content,
