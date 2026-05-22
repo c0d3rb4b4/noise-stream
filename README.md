@@ -4,6 +4,7 @@ HLS audio streaming of generated noise types (white/pink/brown) using FFmpeg `an
 
 ## Features
 - Generate and stream white, pink, and brown noise
+- Automatically loops `WhiteNoise.mp3` forever for `noise_white` when present in the container
 - HLS output with `.m3u8` playlist and `.ts` segments
 - Health monitoring and auto-restart of degraded streams
 - Dockerized deployment with `docker-compose`

@@ -91,6 +91,7 @@ class NoiseStreamManager:
         self.noise_types = [n.lower() for n in noise_types]
         self._streams: dict[str, StreamInfo] = {}
         self._lock = threading.Lock()
+        self._white_noise_sample = Path("/app/WhiteNoise.mp3")
 
     def get_streams(self) -> dict[str, StreamInfo]:
         with self._lock:
@@ -104,7 +105,11 @@ class NoiseStreamManager:
         stream_id = f"noise_{noise_type}"
         hls_dir = self.base_hls_dir / stream_id
         hls_dir.mkdir(parents=True, exist_ok=True)
-        runner = NoiseFFmpegRunner(noise_type, self.base_ffmpeg_config, hls_dir)
+        input_file = None
+        if noise_type == "white" and self._white_noise_sample.exists():
+            input_file = self._white_noise_sample
+            logger.info("Using WhiteNoise sample file for white noise stream: %s", input_file)
+        runner = NoiseFFmpegRunner(noise_type, self.base_ffmpeg_config, hls_dir, input_file=input_file)
         logger.info("Created noise stream: stream_id=%s, type=%s, hls_dir=%s",
                     stream_id, noise_type, hls_dir)
         return StreamInfo(

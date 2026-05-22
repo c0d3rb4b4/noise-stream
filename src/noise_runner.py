@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 class NoiseFFmpegRunner:
     """Manages FFmpeg process for HLS audio streaming from generated noise."""
 
-    def __init__(self, noise_type: str, config: FFmpegConfig, hls_dir: Path):
+    def __init__(self, noise_type: str, config: FFmpegConfig, hls_dir: Path, input_file: Optional[Path] = None):
         """Initialize FFmpeg runner.
 
         Args:
@@ -26,6 +26,7 @@ class NoiseFFmpegRunner:
         self.noise_type = noise_type.lower()
         self.config = config
         self.hls_dir = hls_dir
+        self.input_file = input_file
         self._process: Optional[subprocess.Popen] = None
         self._lock = threading.Lock()
         self._stderr_thread: Optional[threading.Thread] = None
@@ -52,14 +53,18 @@ class NoiseFFmpegRunner:
         output_path = self.hls_dir / "stream.m3u8"
         segment_path = self.hls_dir / "segment%05d.ts"
 
-        # anoisesrc supports color=white|pink|brown
-        source = f"anoisesrc=color={self.noise_type}:sample_rate={self.config.sample_rate}"
+        command = ["ffmpeg", "-re"]
+        if self.input_file:
+            command.extend([
+                "-stream_loop", "-1",
+                "-i", str(self.input_file),
+            ])
+        else:
+            # anoisesrc supports color=white|pink|brown
+            source = f"anoisesrc=color={self.noise_type}:sample_rate={self.config.sample_rate}"
+            command.extend(["-f", "lavfi", "-i", source])
 
-        command = [
-            "ffmpeg",
-            "-re",  # Read input at native frame rate (real-time) - critical for generated sources
-            "-f", "lavfi",
-            "-i", source,
+        command.extend([
             "-c:a", "aac",
             "-b:a", self.config.audio_bitrate,
             "-f", "hls",
@@ -68,11 +73,16 @@ class NoiseFFmpegRunner:
             "-hls_flags", "delete_segments",
             "-hls_segment_filename", str(segment_path),
             str(output_path),
-        ]
+        ])
         logger.debug(
-            "Built FFmpeg command: noise=%s, sample_rate=%d, bitrate=%s, segment_time=%d, list_size=%d, output=%s",
-            self.noise_type, self.config.sample_rate, self.config.audio_bitrate,
-            self.config.segment_time, self.config.list_size, output_path,
+            "Built FFmpeg command: noise=%s, input_file=%s, sample_rate=%d, bitrate=%s, segment_time=%d, list_size=%d, output=%s",
+            self.noise_type,
+            str(self.input_file) if self.input_file else None,
+            self.config.sample_rate,
+            self.config.audio_bitrate,
+            self.config.segment_time,
+            self.config.list_size,
+            output_path,
         )
         return command
 
