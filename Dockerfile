@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy source code
 COPY src/ ./src/
+COPY WhiteNoise.mp3 /app/WhiteNoise.mp3
 
 # Create directories for HLS output and config
 RUN mkdir -p /app/hls /app/config && \
